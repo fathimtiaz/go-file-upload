@@ -7,6 +7,7 @@ import (
 	"go-file-upload/internal/domain"
 	"go-file-upload/internal/repository"
 	"io"
+	"log"
 	"mime/multipart"
 	"sync"
 	"time"
@@ -33,13 +34,18 @@ func (s *FileSvc) SaveFile(ctx context.Context, reqFile multipart.File, reqFileH
 			return
 		}
 
+		var jobs = make(chan domain.FileChunk)
+
+		for i := 0; i < 3; i++ {
+			go saveFileChunksWorker(ctx, repo, jobs)
+		}
+
 		var bytesRead int
 		var index int
 		var chunkSize int = s.cfg.FIle.ChunkSize.Int()
 		var buffer = make([]byte, chunkSize)
-		var wg = &sync.WaitGroup{}
 
-		for {
+		for index == 0 {
 			bytesRead, err = reqFile.Read(buffer)
 			if err != nil && err != io.EOF {
 				return
@@ -51,18 +57,11 @@ func (s *FileSvc) SaveFile(ctx context.Context, reqFile multipart.File, reqFileH
 
 			var chunk = domain.NewChunk(file.Id, index, chunkSize)
 			copy(chunk.Data, buffer[:bytesRead])
+			jobs <- chunk
 			index++
-
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				if err = repo.SaveFileChunk(ctx, &chunk); err != nil {
-					return
-				}
-			}()
 		}
 
-		wg.Wait()
+		close(jobs)
 
 		file.ChunkSize = chunkSize
 		file.NumOfChunks = index + 1
@@ -78,6 +77,25 @@ func (s *FileSvc) SaveFile(ctx context.Context, reqFile multipart.File, reqFileH
 	}
 
 	return
+}
+
+func saveFileChunksWorker(ctx context.Context, repo repository.FileRepo, jobs <-chan domain.FileChunk) {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for job := range jobs {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		if err := repo.SaveFileChunk(ctx, &job); err != nil {
+			log.Println("error saving file_chunk_: ", err.Error())
+			repo.Rollback()
+			cancel()
+			return
+		}
+	}
 }
 
 func (s *FileSvc) GetFileInfo(ctx context.Context, query repository.FileQuery) (result domain.File, err error) {

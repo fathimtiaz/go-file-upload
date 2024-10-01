@@ -12,7 +12,7 @@ type sqlDBTx struct {
 }
 
 func TxConn(tx *sql.Tx, db *sqlDB) sqlDBTx {
-	adapter := &sqlDB{ddb: tx, db: db.db}
+	adapter := &sqlDB{ddb: tx, db: db.db, tx: tx}
 	return sqlDBTx{tx, adapter}
 }
 
@@ -31,4 +31,8 @@ func (db *sqlDB) WrapTx(ctx context.Context, fn func(repository.FileRepo) error)
 	}
 
 	return tx.Commit()
+}
+
+func (db *sqlDB) Rollback() error {
+	return db.tx.Rollback()
 }

@@ -15,4 +15,5 @@ type FileRepo interface {
 	GetFileChunkIds(context.Context, FileQuery) (ids []int, err error)
 
 	WrapTx(context.Context, func(FileRepo) error) error
+	Rollback() error
 }

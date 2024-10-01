@@ -10,6 +10,8 @@ type sqlDB struct {
 
 	// needed to beginTx
 	db *sql.DB
+	// needed for rollback
+	tx *sql.Tx
 }
 
 type SqlDB interface {
@@ -22,6 +24,6 @@ func NewSqlDB(driver, connStr string) (repo *sqlDB, err error) {
 	db, err := sql.Open(driver, connStr)
 
 	return &sqlDB{
-		db, db,
+		db, db, nil,
 	}, err
 }
