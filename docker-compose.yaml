@@ -1,0 +1,40 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      APP_ENV: dev
+      APP_PORT: 8080
+      DB_CONNSTR: postgres://postgres:postgres@db:5432/database?sslmode=disable
+      FILE_MAX_SIZE: 1000000
+      FILE_CHUNK_SIZE: 2000
+    depends_on:
+      db:
+        condition: service_healthy
+  db:
+    platform: linux/x86_64
+    image: postgres:14.1-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: database
+    ports:
+      - 6432:5432
+    expose:
+      - 6432
+    volumes:
+      - db:/var/lib/postgresql/data 
+      # Load database schema from ./database.sql
+      # If you want to reload new database schema, you need to execute
+      # `docker-compose down --volumes` first to remove the volume.
+      - c:/Users/fathi/Documents/workspace/hypehire/go-file-upload/database.sql:/docker-entrypoint-initdb.d/database.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+volumes:
+  db:
+    driver: local
