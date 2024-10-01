@@ -29,7 +29,8 @@ services:
       # Load database schema from ./database.sql
       # If you want to reload new database schema, you need to execute
       # `docker-compose down --volumes` first to remove the volume.
-      - c:/Users/fathi/Documents/workspace/hypehire/go-file-upload/database.sql:/docker-entrypoint-initdb.d/database.sql
+      # Windows: - c:/Users/fathi/Documents/workspace/go-file-upload/database.sql:/docker-entrypoint-initdb.d/database.sql
+      - ./database.sql:/docker-entrypoint-initdb.d/database.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
